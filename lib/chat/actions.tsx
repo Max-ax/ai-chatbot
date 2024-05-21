@@ -19,11 +19,13 @@ import {
   Purchase
 } from '@/components/stocks'
 
+
 import { z } from 'zod'
 import { EventsSkeleton } from '@/components/stocks/events-skeleton'
 import { Events } from '@/components/stocks/events'
 import { StocksSkeleton } from '@/components/stocks/stocks-skeleton'
 import { Stocks } from '@/components/stocks/stocks'
+import { ProgramCards } from '@/components/programs/program-cards'
 import { StockSkeleton } from '@/components/stocks/stock-skeleton'
 import {
   formatNumber,
@@ -36,75 +38,75 @@ import { SpinnerMessage, UserMessage } from '@/components/stocks/message'
 import { Chat, Message } from '@/lib/types'
 import { auth } from '@/auth'
 
-async function confirmPurchase(symbol: string, price: number, amount: number) {
-  'use server'
+// async function confirmPurchase(symbol: string, price: number, amount: number) {
+//   'use server'
 
-  const aiState = getMutableAIState<typeof AI>()
+//   const aiState = getMutableAIState<typeof AI>()
 
-  const purchasing = createStreamableUI(
-    <div className="inline-flex items-start gap-1 md:items-center">
-      {spinner}
-      <p className="mb-2">
-        Purchasing {amount} ${symbol}...
-      </p>
-    </div>
-  )
+//   const purchasing = createStreamableUI(
+//     <div className="inline-flex items-start gap-1 md:items-center">
+//       {spinner}
+//       <p className="mb-2">
+//         Purchasing {amount} ${symbol}...
+//       </p>
+//     </div>
+//   )
 
-  const systemMessage = createStreamableUI(null)
+//   const systemMessage = createStreamableUI(null)
 
-  runAsyncFnWithoutBlocking(async () => {
-    await sleep(1000)
+//   runAsyncFnWithoutBlocking(async () => {
+//     await sleep(1000)
 
-    purchasing.update(
-      <div className="inline-flex items-start gap-1 md:items-center">
-        {spinner}
-        <p className="mb-2">
-          Purchasing {amount} ${symbol}... working on it...
-        </p>
-      </div>
-    )
+//     purchasing.update(
+//       <div className="inline-flex items-start gap-1 md:items-center">
+//         {spinner}
+//         <p className="mb-2">
+//           Purchasing {amount} ${symbol}... working on it...
+//         </p>
+//       </div>
+//     )
 
-    await sleep(1000)
+//     await sleep(1000)
 
-    purchasing.done(
-      <div>
-        <p className="mb-2">
-          You have successfully purchased {amount} ${symbol}. Total cost:{' '}
-          {formatNumber(amount * price)}
-        </p>
-      </div>
-    )
+//     purchasing.done(
+//       <div>
+//         <p className="mb-2">
+//           You have successfully purchased {amount} ${symbol}. Total cost:{' '}
+//           {formatNumber(amount * price)}
+//         </p>
+//       </div>
+//     )
 
-    systemMessage.done(
-      <SystemMessage>
-        You have purchased {amount} shares of {symbol} at ${price}. Total cost ={' '}
-        {formatNumber(amount * price)}.
-      </SystemMessage>
-    )
+//     systemMessage.done(
+//       <SystemMessage>
+//         You have purchased {amount} shares of {symbol} at ${price}. Total cost ={' '}
+//         {formatNumber(amount * price)}.
+//       </SystemMessage>
+//     )
 
-    aiState.done({
-      ...aiState.get(),
-      messages: [
-        ...aiState.get().messages,
-        {
-          id: nanoid(),
-          role: 'system',
-          content: `[User has purchased ${amount} shares of ${symbol} at ${price}. Total cost = ${
-            amount * price
-          }]`
-        }
-      ]
-    })
-  })
+//     aiState.done({
+//       ...aiState.get(),
+//       messages: [
+//         ...aiState.get().messages,
+//         {
+//           id: nanoid(),
+//           role: 'system',
+//           content: `[User has purchased ${amount} shares of ${symbol} at ${price}. Total cost = ${
+//             amount * price
+//           }]`
+//         }
+//       ]
+//     })
+//   })
 
-  return {
-    purchasingUI: purchasing.value,
-    newMessage: {
-      id: nanoid(),
-      display: systemMessage.value
-    }
-  }
-}
+//   return {
+//     purchasingUI: purchasing.value,
+//     newMessage: {
+//       id: nanoid(),
+//       display: systemMessage.value
+//     }
+//   }
+// }
 
 async function submitUserMessage(content: string) {
   'use server'
@@ -130,8 +132,9 @@ async function submitUserMessage(content: string) {
     model: openai('gpt-3.5-turbo'),
     initial: <SpinnerMessage />,
     system: `\
-    You are a stock trading conversation bot and you can help users buy stocks, step by step.
-    You and the user can discuss stock prices and the user can adjust the amount of stocks they want to buy, or place an order, in the UI.
+    You are a education assistant conversation bot called Sgope AI aim to help users especailly Chinese students select the best master program and help students to apply them.
+    You and the user can discuss about graduate education and the user can select the intended master program they want, in the UI
+
     
     Messages inside [] means that it's a UI element or a user event. For example:
     - "[Price of AAPL = 100]" means that an interface of the stock price of AAPL is shown to the user.
@@ -148,7 +151,6 @@ async function submitUserMessage(content: string) {
       ...aiState.get().messages.map((message: any) => ({
         role: message.role,
         content: message.content,
-        name: message.name
       }))
     ],
     text: ({ content, done, delta }) => {
@@ -177,8 +179,61 @@ async function submitUserMessage(content: string) {
       return textNode
     },
     tools: {
+      listPrograms:{
+        description:'List four imaginary master program that suits the user\'s need.',
+        parameters: z.object({
+          programs: z.array(
+            z.object({
+              id: z.number().describe('The program id 1-10')
+            })
+          )
+        }),
+        generate: async function* ({programs}) {
+          
+          await sleep(1000)
+
+          const toolCallId = nanoid()
+
+          aiState.done({
+            ...aiState.get(),
+            messages: [
+              ...aiState.get().messages,
+              {
+                id: nanoid(),
+                role: 'assistant',
+                content: [
+                  {
+                    type: 'tool-call',
+                    toolName: 'listPrograms',
+                    toolCallId,
+                    args: { programs }
+                  }
+                ]
+              },
+              {
+                id: nanoid(),
+                role: 'tool',
+                content: [
+                  {
+                    type: 'tool-result',
+                    toolName: 'listPrograms',
+                    toolCallId,
+                    result: programs
+                  }
+                ]
+              }
+            ]
+          })
+
+          return (
+            <BotCard>
+              <ProgramCards props={programs}  />
+            </BotCard>
+          )
+        }
+      },
       listStocks: {
-        description: 'List three imaginary stocks that are trending.',
+        description: 'List three imaginary stock that are trending.',
         parameters: z.object({
           stocks: z.array(
             z.object({
@@ -189,6 +244,7 @@ async function submitUserMessage(content: string) {
           )
         }),
         generate: async function* ({ stocks }) {
+          console.log(...stocks);
           yield (
             <BotCard>
               <StocksSkeleton />
@@ -496,7 +552,7 @@ export type UIState = {
 export const AI = createAI<AIState, UIState>({
   actions: {
     submitUserMessage,
-    confirmPurchase
+    // confirmPurchase
   },
   initialUIState: [],
   initialAIState: { chatId: nanoid(), messages: [] },

@@ -36,12 +36,12 @@ export function Chat({ id, className, session, missingKeys }: ChatProps) {
     }
   }, [id, path, session?.user, messages])
 
-  useEffect(() => {
-    const messagesLength = aiState.messages?.length
-    if (messagesLength === 2) {
-      router.refresh()
-    }
-  }, [aiState.messages, router])
+  // useEffect(() => {
+  //   const messagesLength = aiState.messages?.length
+  //   if (messagesLength === 2) {
+  //     router.refresh()
+  //   }
+  // }, [aiState.messages, router])
 
   useEffect(() => {
     setNewChatId(id)
