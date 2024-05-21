@@ -53,9 +53,9 @@ const addIcon = useMemo(() => {
 
   return (
        
-    <div className="flex cursor-pointer flex-row gap-1 rounded-md p-2 text-left hover:bg-gray-200 transition-colors duration-300 w-[270px] border border-gray-300 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-800 items-center">
+    <div className="flex cursor-pointer flex-row gap-1 rounded-md p-2 text-left hover:bg-gray-200 transition-colors duration-300 w-[270px] border border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-800 items-center">
         <Avatar className="flex-shrink-0">
-        <AvatarImage alt="School Logo" src="https://media.designrush.com/inspiration_images/131656/conversions/_1523460223_965_Harvard-Wreath-Logo_ab2ece9fbd52-mobile.jpg" />
+          <AvatarImage alt="School Logo" src="https://media.designrush.com/inspiration_images/131656/conversions/_1523460223_965_Harvard-Wreath-Logo_ab2ece9fbd52-mobile.jpg" />
         </Avatar>
         <div className="flex flex-col text-xs flex-grow">
         <span className="font-bold">Harvard University</span>

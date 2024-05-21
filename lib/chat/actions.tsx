@@ -184,7 +184,7 @@ async function submitUserMessage(content: string) {
         parameters: z.object({
           programs: z.array(
             z.object({
-              id: z.number().describe('The program id 1-10')
+              id: z.number().describe('The unique program id 1-10')
             })
           )
         }),

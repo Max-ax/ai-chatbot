@@ -13,11 +13,10 @@ export function EmptyScreen() {
         </h1>
         <p className="leading-normal text-muted-foreground">
           Welcome to Sgope AI, your intelligent partner in academic success! 
-          Our advanced AI chatbot is here to guide you through selecting the perfect master's program, 
+          Our advanced AI chatbot is here to guide you through selecting the perfect master&apos;s program, 
           crafting compelling application essays, and answering all your general questions. 
-          Empower your future with personalized support from Sgope AI—where your academic dreams take flight!
+          Empower your future with personalized support from Sgope AI&mdash;where your academic dreams take flight!
         </p>
-        
       </div>
     </div>
   )
