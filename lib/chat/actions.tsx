@@ -6,10 +6,10 @@ import {
   getMutableAIState,
   getAIState,
   streamUI,
-  createStreamableValue
+  createStreamableValue,
+  readStreamableValue
 } from 'ai/rsc'
 import { openai } from '@ai-sdk/openai'
-
 import {
   spinner,
   BotCard,
@@ -18,7 +18,6 @@ import {
   Stock,
   Purchase
 } from '@/components/stocks'
-
 
 import { z } from 'zod'
 import { EventsSkeleton } from '@/components/stocks/events-skeleton'
@@ -37,6 +36,63 @@ import { saveChat } from '@/app/actions'
 import { SpinnerMessage, UserMessage } from '@/components/stocks/message'
 import { Chat, Message } from '@/lib/types'
 import { auth } from '@/auth'
+import { streamText } from 'ai'
+import { Description } from '@radix-ui/react-dialog'
+import { ProgramCardsSkeleton } from '@/components/programs/program-cards-skeleton'
+import GatherBasicInfo from '@/components/Information/basic-info'
+import GatherEssayInfo from '@/components/Information/essay-info'
+import { ApplicationEssay } from '@/components/programs/application-essay'
+import { useStreamableText } from '../hooks/use-streamable-text'
+
+
+
+
+// export async function toolIntro(toolName:string, toolDescription:string){
+//   'use server' 
+// const aiState = getAIState<typeof AI>()
+// let textStream: undefined | ReturnType<typeof createStreamableValue<string>>
+// let textNode: undefined | React.ReactNode
+//  const result = await streamUI({
+//    model: openai('gpt-4o'),
+//    system:
+//      `You are a assistant that going to introduce the tool result,
+//      base on the toolName and the toolDescription,
+//      generate a concise short introduction of the tool result
+//      The tool name is: ${toolName}.
+//      The tool description is: ${toolDescription}
+//      For example:
+//      User: list 4 programs most suitable for me
+//      toolName: listPrograms
+//      toolDescription: List four imaginary master programs that suit the user's need.
+//      Assistant: Here are four master program that are most suitable for you
+//      `,
+//        messages: [
+//            ...aiState.messages.map((message: any) => ({
+//                role: message.role,
+//                content: message.content,
+//            }))
+//        ],
+//        text: ({ content, done, delta }) => {
+//            if (!textStream) {
+//                textStream = createStreamableValue('')
+//                textNode = <BotMessage content={textStream.value} />
+//            }
+
+//            if (done) {
+//                textStream.done()
+          
+//            } else {
+//                textStream.update(delta)
+//            }
+
+//            return textNode;
+//        },
+// }); 
+// return result.value;
+// }
+
+
+
 
 // async function confirmPurchase(symbol: string, price: number, amount: number) {
 //   'use server'
@@ -108,6 +164,9 @@ import { auth } from '@/auth'
 //   }
 // }
 
+
+
+
 async function submitUserMessage(content: string) {
   'use server'
 
@@ -127,26 +186,30 @@ async function submitUserMessage(content: string) {
 
   let textStream: undefined | ReturnType<typeof createStreamableValue<string>>
   let textNode: undefined | React.ReactNode
+  let toolStream:  undefined | ReturnType<typeof createStreamableValue<string>>
+
+
+
 
   const result = await streamUI({
-    model: openai('gpt-3.5-turbo'),
+    model: openai('gpt-4o'),
     initial: <SpinnerMessage />,
     system: `\
     You are a education assistant conversation bot called Sgope AI aim to help users especailly Chinese students select the best master program and help students to apply them.
+    Always call the tool if needed to
+    Before calling the tool always tell the user what are you doing
     You and the user can discuss about graduate education and the user can select the intended master program they want, in the UI
 
     
     Messages inside [] means that it's a UI element or a user event. For example:
     - "[Price of AAPL = 100]" means that an interface of the stock price of AAPL is shown to the user.
     - "[User has changed the amount of AAPL to 10]" means that the user has changed the amount of AAPL to 10 in the UI.
-    
-    If the user requests purchasing a stock, call \`show_stock_purchase_ui\` to show the purchase UI.
-    If the user just wants the price, call \`show_stock_price\` to show the price.
-    If you want to show trending stocks, call \`list_stocks\`.
-    If you want to show events, call \`get_events\`.
-    If the user wants to sell stock, or complete another impossible task, respond that you are a demo and cannot do that.
-    
-    Besides that, you can also chat with users and do some calculations if needed.`,
+
+    If the user requests to see some programs, call \`listPrograms\` to show the program card UI.
+    If the user requests to generate an application essay, call \`essayWriting\` to show essay writing UI.
+    If the user requests to work on an application essay, call \`essayInfo\` to show gather essay info UI.
+    If the user wants to ask for personal recommendation of suitable master program, call \`gatherBasicInfo\` function to show gather basic info UI
+  `,
     messages: [
       ...aiState.get().messages.map((message: any) => ({
         role: message.role,
@@ -154,13 +217,15 @@ async function submitUserMessage(content: string) {
       }))
     ],
     text: ({ content, done, delta }) => {
-      if (!textStream) {
+      if (!textStream || !toolStream) {
         textStream = createStreamableValue('')
+        toolStream = createStreamableValue('')
         textNode = <BotMessage content={textStream.value} />
       }
 
       if (done) {
         textStream.done()
+        toolStream.done()
         aiState.done({
           ...aiState.get(),
           messages: [
@@ -174,13 +239,177 @@ async function submitUserMessage(content: string) {
         })
       } else {
         textStream.update(delta)
+        toolStream.update(content)
       }
 
-      return textNode
+      return textNode;
     },
     tools: {
+      essayWriting:{
+        description: 'Generate an application Essay base on user\'s request',
+        parameters: z.object({
+          essay: z.object({
+            id: z.number().describe('The essay id')
+          })
+        }),
+          generate: async function* ({essay}){
+                   
+            await sleep(1000)
+            
+            const toolCallId = nanoid()
+  
+            aiState.done({
+              ...aiState.get(),
+              messages: [
+                ...aiState.get().messages,
+                {
+                  id: nanoid(),
+                  role: 'assistant',
+                  content: [
+                    {
+                      type: 'tool-call',
+                      toolName: 'essayWriting',
+                      toolCallId,
+                      args: { essay }
+                    }
+                  ]
+                },
+                {
+                  id: nanoid(),
+                  role: 'tool',
+                  content: [
+                    {
+                      type: 'tool-result',
+                      toolName: 'essayWriting',
+                      toolCallId,
+                      result: essay
+                    }
+                  ]
+                }
+              ]
+            })
+            
+          toolStream?.done();
+            return (
+              <BotCard  content={toolStream?.value}>
+                  <ApplicationEssay props={essay}/>
+                </BotCard>
+              
+            )
+          }
+            
+          },
+      essayInfo:{
+        description: 'Gather the needed information for the application essay before work on an essay',
+        parameters: z.object({
+          essayRequest: z.object({
+            id: z.number().describe('The essayRequest id')
+          })
+        }),
+        generate: async function* ({essayRequest}){
+          toolStream?.done();
+          console.log(toolStream);
+          await sleep(1000)
+
+          const toolCallId = nanoid()
+
+          aiState.done({
+            ...aiState.get(),
+            messages: [
+              ...aiState.get().messages,
+              {
+                id: nanoid(),
+                role: 'assistant',
+                content: [
+                  {
+                    type: 'tool-call',
+                    toolName: 'essayInfo',
+                    toolCallId,
+                    args: { essayRequest }
+                  }
+                ]
+              },
+              {
+                id: nanoid(),
+                role: 'tool',
+                content: [
+                  {
+                    type: 'tool-result',
+                    toolName: 'essayInfo',
+                    toolCallId,
+                    result: essayRequest
+                  }
+                ]
+              }
+            ]
+          })
+          
+          return (
+            <BotCard  content="{toolMessage}">
+              <GatherEssayInfo/>
+            </BotCard>
+          )
+        }
+          
+        },
+
+      gatherBasicInfo:{
+        description: 'Gather the user\'s basic information to give customized services',
+        parameters: z.object({
+          user: z.object({
+            id: z.number().describe('The userid')
+          })
+        }),
+        generate: async function* ({user}){
+          console.log("gatherBasic")
+          await sleep(1000)
+
+          const toolCallId = nanoid()
+          
+          toolStream?.done();
+          console.log(toolStream);
+
+          aiState.done({
+            ...aiState.get(),
+            messages: [
+              ...aiState.get().messages,
+              {
+                id: nanoid(),
+                role: 'assistant',
+                content: [
+                  {
+                    type: 'tool-call',
+                    toolName: 'gatherBasicInfo',
+                    toolCallId,
+                    args: { user }
+                  }
+                ]
+              },
+              {
+                id: nanoid(),
+                role: 'tool',
+                content: [
+                  {
+                    type: 'tool-result',
+                    toolName: 'gatherBasicInfo',
+                    toolCallId,
+                    result: user
+                  }
+                ]
+              }
+            ]
+          })
+          return (
+            <BotCard  content={toolStream?.value}>
+              <GatherBasicInfo/>
+            </BotCard>
+          )
+        }
+          
+        },
+
       listPrograms:{
-        description:'List four imaginary master program that suits the user\'s need.',
+        description:'List four imaginary master program when user is asking to show programs.',
         parameters: z.object({
           programs: z.array(
             z.object({
@@ -188,8 +417,12 @@ async function submitUserMessage(content: string) {
             })
           )
         }),
-        generate: async function* ({programs}) {
-          
+        generate: async function* ({programs}){
+          console.log("list program")
+          yield(
+            <ProgramCardsSkeleton count = {programs.length} />
+          )
+
           await sleep(1000)
 
           const toolCallId = nanoid()
@@ -224,14 +457,15 @@ async function submitUserMessage(content: string) {
               }
             ]
           })
-
+          
           return (
-            <BotCard>
+            <BotCard  content={toolStream?.value}>
               <ProgramCards props={programs}  />
             </BotCard>
           )
         }
       },
+
       listStocks: {
         description: 'List three imaginary stock that are trending.',
         parameters: z.object({
@@ -532,7 +766,7 @@ async function submitUserMessage(content: string) {
       }
     }
   })
-
+  console.log(aiState.get());
   return {
     id: nanoid(),
     display: result.value
@@ -611,7 +845,25 @@ export const getUIStateFromAIState = (aiState: Chat) => {
       display:
         message.role === 'tool' ? (
           message.content.map(tool => {
-            return tool.toolName === 'listStocks' ? (
+            return tool.toolName === 'gatherBasicInfo' ? (
+              <BotCard>
+                {/* TODO: Infer types based on the tool result*/}
+                {/* @ts-expect-error */}
+                <Stocks props={tool.result} />
+              </BotCard>
+            ) :tool.toolName === 'essayInfo' ? (
+              <BotCard>
+                {/* TODO: Infer types based on the tool result*/}
+                {/* @ts-expect-error */}
+                <Stocks props={tool.result} />
+              </BotCard>
+            ) :tool.toolName === 'listPrograms' ? (
+              <BotCard>
+                {/* TODO: Infer types based on the tool result*/}
+                {/* @ts-expect-error */}
+                <Stocks props={tool.result} />
+              </BotCard>
+            ) :tool.toolName === 'listStocks' ? (
               <BotCard>
                 {/* TODO: Infer types based on the tool result*/}
                 {/* @ts-expect-error */}

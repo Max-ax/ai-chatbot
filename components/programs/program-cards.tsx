@@ -14,7 +14,7 @@ interface Program {
 
 export function ProgramCards({ props: programs }: { props: Program[] }) {
   return (
-    <div className="mb-4 flex flex-col gap-2 overflow-y-scroll pb-4 text-sm sm:grid sm:grid-cols-2">
+    <div className="mb-4 flex flex-col gap-2 pb-3 text-sm sm:grid sm:grid-cols-2">
       {programs.map((program) => (
         <ProgramCard key={program.id} props={program} />
       ))}

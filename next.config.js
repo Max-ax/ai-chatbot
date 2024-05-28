@@ -14,6 +14,12 @@ module.exports = withBundleAnalyzer({
         hostname: 'avatars.githubusercontent.com',
         port: '',
         pathname: '**'
+      },
+      {
+        protocol: 'https',
+        hostname: 'media.istockphoto.com',
+        port: '',
+        pathname: '**'
       }
     ]
   }
